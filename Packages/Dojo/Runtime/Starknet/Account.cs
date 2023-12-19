@@ -1,6 +1,7 @@
 using System;
 using bottlenoselabs.C2CS.Runtime;
 using dojo_bindings;
+using UnityEngine;
 
 namespace Dojo.Starknet
 {
@@ -52,6 +53,7 @@ namespace Dojo.Starknet
                 callsPtr = ptr;
             }
     
+            // Debug.Log(calls.Length);
             var result = dojo.account_execute_raw(account, callsPtr, (nuint) calls.Length);
             if (result.tag == dojo.Result_bool_Tag.Err_bool)
             {

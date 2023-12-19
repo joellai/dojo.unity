@@ -7,14 +7,142 @@ using dojo_bindings;
 using JetBrains.Annotations;
 using System.Linq;
 using System.Runtime.InteropServices;
+using AOT;
 
 namespace Dojo.Torii
 {
+    // 静态类中添加静态方法
+    public static class CallbackHandlerUtility
+    {
+        [MonoPInvokeCallback(typeof(dojo.FnPtr_FieldElement_CArrayModel_Void))]
+        public static unsafe void HandleCallback(dojo.FieldElement key, dojo.CArray_Model models)
+        {
+            var mappedModels = new Model[(int)models.data_len];
+            for (var i = 0; i < (int)models.data_len; i++)
+            {
+                mappedModels[i] = new Model(models.data[i]);
+                // TODO: free the c model
+                // dojo.model_free(&models.data[i]);
+            }
+
+            dojo.carray_free(models.data, models.data_len);
+            // only run this when in unity play mode
+            // we need our unity main thread dispatcher to run this on the main thread
+            // if (dispatchToMainThread)
+            // {
+            Debug.Log("I am here");
+            UnityMainThreadDispatcher.Instance()
+                .Enqueue(() => ToriiEvents.Instance.EntityUpdated(key, mappedModels));
+            Debug.Log("end true");
+
+            // }
+            // else
+            // {
+            //     ToriiEvents.Instance.EntityUpdated(key, mappedModels);
+            // }
+        }
+        
+        [MonoPInvokeCallback(typeof(dojo.FnPtr_FieldElement_CArrayModel_Void))]
+        public static unsafe void HandleCallbackFalse(dojo.FieldElement key, dojo.CArray_Model models)
+        {
+            var mappedModels = new Model[(int)models.data_len];
+            for (var i = 0; i < (int)models.data_len; i++)
+            {
+                mappedModels[i] = new Model(models.data[i]);
+                // TODO: free the c model
+                // dojo.model_free(&models.data[i]);
+            }
+
+            dojo.carray_free(models.data, models.data_len);
+            // only run this when in unity play mode
+            // we need our unity main thread dispatcher to run this on the main thread
+            // if (dispatchToMainThread)
+            // {
+            // UnityMainThreadDispatcher.Instance()
+            //     .Enqueue(() => ToriiEvents.Instance.EntityUpdated(key, mappedModels));
+            // }
+            // else
+            // {
+            Debug.Log("false I am here");
+
+            ToriiEvents.Instance.EntityUpdated(key, mappedModels);
+            Debug.Log("end false");
+
+            // }
+            // else
+            // {
+            //     ToriiEvents.Instance.EntityUpdated(key, mappedModels);
+            // }
+        }
+    }
+
     public unsafe class ToriiClient
     {
         private dojo.FnPtr_FieldElement_CArrayModel_Void.@delegate entityStateUpdateHandler;
         private dojo.FnPtr_Void.@delegate syncModelUpdateHandler;
         private dojo.ToriiClient* client;
+
+        private static dojo.FnPtr_FieldElement_CArrayModel_Void.@delegate CallbackHandlerTrue =
+            (key, models) =>
+            {
+                var mappedModels = new Model[(int)models.data_len];
+                for (var i = 0; i < (int)models.data_len; i++)
+                {
+                    mappedModels[i] = new Model(models.data[i]);
+                    // TODO: free the c model
+                    // dojo.model_free(&models.data[i]);
+                }
+
+                dojo.carray_free(models.data, models.data_len);
+                // only run this when in unity play mode
+                // we need our unity main thread dispatcher to run this on the main thread
+                // if (dispatchToMainThread)
+                // {
+                Debug.Log("I am here");
+                UnityMainThreadDispatcher.Instance()
+                    .Enqueue(() => ToriiEvents.Instance.EntityUpdated(key, mappedModels));
+                Debug.Log("end true");
+
+                // }
+                // else
+                // {
+                //     ToriiEvents.Instance.EntityUpdated(key, mappedModels);
+                // }
+            };
+
+        private static void TestCallHandler()
+        {
+        }
+
+        private static dojo.FnPtr_FieldElement_CArrayModel_Void.@delegate CallbackHandlerFalse =
+            (key, models) =>
+            {
+                var mappedModels = new Model[(int)models.data_len];
+                for (var i = 0; i < (int)models.data_len; i++)
+                {
+                    mappedModels[i] = new Model(models.data[i]);
+                    // TODO: free the c model
+                    // dojo.model_free(&models.data[i]);
+                }
+
+                dojo.carray_free(models.data, models.data_len);
+                // only run this when in unity play mode
+                // we need our unity main thread dispatcher to run this on the main thread
+                // if (dispatchToMainThread)
+                // {
+                // UnityMainThreadDispatcher.Instance()
+                //     .Enqueue(() => ToriiEvents.Instance.EntityUpdated(key, mappedModels));
+                // }
+                // else
+                // {
+                Debug.Log("false I am here");
+
+                ToriiEvents.Instance.EntityUpdated(key, mappedModels);
+                Debug.Log("end false");
+
+
+                // }
+            };
 
         public ToriiClient(string toriiUrl, string rpcUrl, string world, dojo.KeysClause[] entities)
         {
@@ -29,8 +157,10 @@ namespace Dojo.Torii
             }
 
             var result = dojo.client_new(ctoriiUrl, crpcUrl, cworld, entitiesPtr, (nuint)entities.Length);
+            Debug.Log(result.tag.ToString());
             if (result.tag == dojo.Result_____ToriiClient_Tag.Err_____ToriiClient)
             {
+                Debug.Log("result tag is error error");
                 throw new Exception(result.err.message);
             }
 
@@ -167,40 +297,41 @@ namespace Dojo.Torii
             {
                 entitiesPtr = ptr;
             }
-
-            entityStateUpdateHandler = (key, models) =>
+            
+            // Debug.Log("run1");
+            if (dispatchToMainThread)
             {
-                var mappedModels = new Model[(int)models.data_len];
-                for (var i = 0; i < (int)models.data_len; i++)
-                {
-                    mappedModels[i] = new Model(models.data[i]);
-                    // TODO: free the c model
-                    // dojo.model_free(&models.data[i]);
-                }
+                // Debug.Log("run2");
 
-                dojo.carray_free(models.data, models.data_len);
-                // only run this when in unity play mode
-                // we need our unity main thread dispatcher to run this on the main thread
-                if (dispatchToMainThread)
-                {
-                    UnityMainThreadDispatcher.Instance().Enqueue(() => ToriiEvents.Instance.EntityUpdated(key, mappedModels));
-                }
-                else
-                {
-                    ToriiEvents.Instance.EntityUpdated(key, mappedModels);
-                }
-            };
+                // dojo.FnPtr_FieldElement_CArrayModel_Void.@delegate callbackHandler = HandleEntityStateUpdate;
+                dojo.Result_bool res = dojo.client_on_entity_state_update(client, entitiesPtr, (nuint)entities.Length,
+                    new dojo.FnPtr_FieldElement_CArrayModel_Void(CallbackHandlerUtility.HandleCallback));
+                // Debug.Log("run3");
 
 
-            // dojo.FnPtr_FieldElement_CArrayModel_Void.@delegate callbackHandler = HandleEntityStateUpdate;
-            dojo.Result_bool res = dojo.client_on_entity_state_update(client, entitiesPtr, (nuint)entities.Length, new dojo.FnPtr_FieldElement_CArrayModel_Void(entityStateUpdateHandler));
-            if (res.tag == dojo.Result_bool_Tag.Err_bool)
+                if (res.tag == dojo.Result_bool_Tag.Err_bool)
+                {
+                    throw new Exception(res.err.message);
+                }
+            }
+            else
             {
-                throw new Exception(res.err.message);
+                // Debug.Log("run2.1");
+
+                // dojo.FnPtr_FieldElement_CArrayModel_Void.@delegate callbackHandler = HandleEntityStateUpdate;
+                dojo.Result_bool res = dojo.client_on_entity_state_update(client, entitiesPtr, (nuint)entities.Length,
+                    new dojo.FnPtr_FieldElement_CArrayModel_Void(CallbackHandlerUtility.HandleCallbackFalse));
+                // Debug.Log("run2.2");
+
+                if (res.tag == dojo.Result_bool_Tag.Err_bool)
+                {
+                    throw new Exception(res.err.message);
+                }
             }
         }
 
-        public void OnEntityStateUpdateRaw(dojo.FieldElement[] entities, dojo.FnPtr_FieldElement_CArrayModel_Void.@delegate callbackHandler)
+        public void OnEntityStateUpdateRaw(dojo.FieldElement[] entities,
+            dojo.FnPtr_FieldElement_CArrayModel_Void.@delegate callbackHandler)
         {
             dojo.FieldElement* entitiesPtr;
 
@@ -209,7 +340,10 @@ namespace Dojo.Torii
                 entitiesPtr = ptr;
             }
 
-            dojo.Result_bool res = dojo.client_on_entity_state_update(client, entitiesPtr, (nuint)entities.Length, new dojo.FnPtr_FieldElement_CArrayModel_Void(callbackHandler));
+            Debug.Log("run");
+
+            dojo.Result_bool res = dojo.client_on_entity_state_update(client, entitiesPtr, (nuint)entities.Length,
+                new dojo.FnPtr_FieldElement_CArrayModel_Void(callbackHandler));
             if (res.tag == dojo.Result_bool_Tag.Err_bool)
             {
                 throw new Exception(res.err.message);
@@ -218,7 +352,8 @@ namespace Dojo.Torii
 
         public void OnSyncModelUpdateRaw(dojo.KeysClause model, dojo.FnPtr_Void.@delegate callbackHandler)
         {
-            dojo.Result_bool res = dojo.client_on_sync_model_update(client, model, new dojo.FnPtr_Void(callbackHandler));
+            dojo.Result_bool res =
+                dojo.client_on_sync_model_update(client, model, new dojo.FnPtr_Void(callbackHandler));
             if (res.tag == dojo.Result_bool_Tag.Err_bool)
             {
                 throw new Exception(res.err.message);

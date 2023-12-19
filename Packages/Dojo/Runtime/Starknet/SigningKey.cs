@@ -1,6 +1,7 @@
 using System;
 using bottlenoselabs.C2CS.Runtime;
 using dojo_bindings;
+using UnityEngine;
 
 namespace Dojo.Starknet
 {
@@ -10,12 +11,14 @@ namespace Dojo.Starknet
         
         public SigningKey(string privateKey)
         {
+            Debug.Log(privateKey);
             var result = dojo.felt_from_hex_be(CString.FromString(privateKey));
             if (result.tag == dojo.Result_FieldElement_Tag.Err_FieldElement)
             {
                 throw new Exception(result.err.message);
             }
             
+            Debug.Log(result.ok);
             inner = result.ok;
         }
         
