@@ -17,7 +17,7 @@ namespace Dojo
         [Header("World")] public string worldAddress;
         public SynchronizationMaster synchronizationMaster;
         public ToriiClient toriiClient;
-        private Account account;
+        public Account account;
         private JsonRpcClient provider;
         private readonly string playerAddress = "0x0517ececd29116499f4a1b64b094da79ba08dfd54a3edaa316134c41f8160973";
         private readonly string actionsAddress = "0x0152dcff993befafe5001975149d2c50bd9621da7cbaed74f68e7d5e54e65abc";
